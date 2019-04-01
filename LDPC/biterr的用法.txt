@@ -1,0 +1,2 @@
+[Num,Rat] = biterr(A,B) A,B是非负的二进制整数，Num是误比特数，Rat是误比特率
+Num就是A，B之间不同数字的位数，Rat就是Num再除以一个帧的位数

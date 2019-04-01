@@ -1,0 +1,101 @@
+你给出来的matlab程序已经进行加噪了
+n=10^(log10(0.5)-(i/10));
+u=rand;
+z=(sqrt(n/2))*(sqrt(2*log(1/(1-u))));
+u=rand;
+gsrv1=z*cos(2*pi*u);
+gsrv2=z*sin(2*pi*u);
+
+y(1)=s(1)+gsrv1;
+y(2)=s(2)+gsrv2
+
+如果你要用awgn函数的话，可以用我下面的写法
+SNR = 4;
+Msg = 1-2.*randsrc(1,10000,[0 1]);
+Msg_I = Msg(1:2:end);
+Msg_Q = Msg(2:2:end);
+Signal = Msg_I + j*Msg_Q;
+SignalAwgn = awgn(Signal,SNR,'measured');
+
+Msg 要发送的信息，0映射为+1，1映射为-1
+Signal 就是QPSK信号
+SignalAwgn 就是加噪后的信号
+到时候分别去实部，虚部就可以
+
+应你的补充，添加的程序说明
+clc;
+clear;
+
+a=1/sqrt(2);   %QPSK星座基准点
+b=-1/sqrt(2);
+ser=zeros(1,11);
+for i=0:10     %统计Eb/N0 = 0~10的QPSK性能
+    error=0;
+    for j=1:10000  %测试10000比特
+        % 通过（0,1）均匀分布的随机数，结合瑞利分布产生服从高斯分布的随机数
+        n=10^(log10(0.5)-(i/10));  % n为噪声功率谱密度
+        u=rand;
+        z=(sqrt(n/2))*(sqrt(2*log(1/(1-u))));
+        u=rand;
+        gsrv1=z*cos(2*pi*u);
+        gsrv2=z*sin(2*pi*u);
+        
+        %随机产生[0,1]两个整数，分别进行映射
+        s=fix(rand(1,2)*2);  
+        if s(1)==0           
+            s(1)=a;
+        elseif s(1)==1
+            s(1)=b;
+        end
+        if s(2)==0
+            s(2)=a;
+        elseif s(2)==1
+            s(2)=b;
+        end
+    
+        %两路分别加噪
+        y(1)=s(1)+gsrv1;      
+        y(2)=s(2)+gsrv2;
+        
+        %进行误码统计
+        if(((y(1)>0)&&(s(1)==b))||((y(1)<0)&&(s(1)==a)))
+            error=error+1;
+        elseif(((y(2)>0)&&(s(2)==b))||((y(2)<0)&&(s(2)==a)))
+            error=error+1;
+        end
+    end
+
+%误码率统计单位转换
+simu=error/10000;
+ser(i+1)=10*log10(simu);
+fprintf('EbN0:%d<dB>\n',i);
+fprintf('Simu_BER:%f\n',simu); 
+end
+
+%画出性能图
+figure(2);
+plot(0:10,ser);
+grid;
+axis([-1 11 -60 -5]);
+title('QPSK');
+xlabel('SNR(dB)');
+ylabel('SER(dB)');
+
+这里详细解释一下加噪部分
+Es/No = Eb/No + 10*log(M);
+sigma^2 = No/2;
+看你程序中的处理应该是坐标横轴为EbNo，单位是dB，因此需要进行转换
+a=1/sqrt(2);b=-1/sqrt(2);意味着符号能量Es = 1;
+n=10^(log10(0.5)-(i/10));算的是No
+sigma^2 = No/2;
+z=(sqrt(n/2))*(sqrt(2*log(1/(1-u))));中sqrt(n/2)算的就是sigma^2
+
+如果两个随机变量gsrv1，gsrv2相互独立且服从相同方差的高斯分布，则它们的模z=sqrt(gsrv1^2+gsrv2^2)服从瑞利分布。
+这段程序
+  u=rand;
+  z=(sqrt(n/2))*(sqrt(2*log(1/(1-u))));
+  u=rand;
+  gsrv1=z*cos(2*pi*u);
+  gsrv2=z*sin(2*pi*u);
+就是利用了这个性质结合rand函数产生了服从高斯分布的随机变量进行加噪。
+F(x)=1-exp(-x^2/(2*sigma^2))是瑞利分布的累积概率分布，取值范围是(0,1),u=rand;产生的值为(0,1)范围内均匀分布随机数作为F(x)的值，然后通过反函数求的x的值，x= sqrt(2*sigma^2*ln(1/1-u))。z=(sqrt(n/2))*(sqrt(2*log(1/(1-u))));就是实现了这样一个表达式。这样就得到了服从瑞利分布的随机变量z，又z=sqrt(gsrv1^2+gsrv2^2),u=rand;gsrv1=z*cos(2*pi*u);gsrv2=z*sin(2*pi*u);这样就得到了服从高斯分布的随机变量 
